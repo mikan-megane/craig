@@ -121,7 +121,7 @@ export async function start(): Promise<void> {
   });
 
   const port = parseInt(process.env.API_PORT, 10) || 3000;
-  await server.listen({ port });
+  await server.listen({ port, host: '0.0.0.0' });
   console.info(`Running webhook on port ${port}, env: ${process.env.NODE_ENV || 'development'}`);
 
   // PM2 graceful start/shutdown
