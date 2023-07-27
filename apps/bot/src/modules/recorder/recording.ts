@@ -62,6 +62,7 @@ export interface RecordingUser {
   id: string;
   username: string;
   discriminator: string;
+  globalName?: string | null;
   avatar?: string;
   avatarUrl?: string;
   unknown: boolean;
@@ -213,9 +214,10 @@ export default class Recording {
           id: this.channel.id,
           type: this.channel.type
         },
-        requester: this.user.username + '#' + this.user.discriminator,
+        requester: this.user.discriminator === '0' ? this.user.username : this.user.username + '#' + this.user.discriminator,
         requesterExtra: {
           username: this.user.username,
+          globalName: this.user.globalName,
           discriminator: this.user.discriminator,
           avatar: this.user.dynamicAvatarURL('png', 256)
         },
@@ -459,18 +461,13 @@ export default class Recording {
     const alreadyConnected = this.recorder.client.bot.voiceConnections.has(this.channel.guild.id);
 
     if (!alreadyConnected) {
-      if (this.connection) {
-        this.connection.removeAllListeners('connect');
-        this.connection.removeAllListeners('disconnect');
-        this.connection.removeAllListeners('error');
-        this.connection.removeAllListeners('warn');
-        this.connection.removeAllListeners('debug');
-        this.connection.removeAllListeners('ready');
-      }
-
-      if (this.receiver) {
-        this.receiver.removeAllListeners('data');
-      }
+      this.connection?.removeAllListeners('connect');
+      this.connection?.removeAllListeners('disconnect');
+      this.connection?.removeAllListeners('error');
+      this.connection?.removeAllListeners('warn');
+      this.connection?.removeAllListeners('debug');
+      this.connection?.removeAllListeners('ready');
+      this.receiver?.removeAllListeners('data');
     }
 
     const connection = await this.channel.join({ opusOnly: true });
@@ -500,6 +497,32 @@ export default class Recording {
     const reconnected = this.state === RecordingState.RECONNECTING;
     this.state = RecordingState.RECORDING;
     if (reconnected) this.pushToActivity('Reconnected.');
+  }
+
+  async retryConnect() {
+    for (let i = 1; i < 4; i++) {
+      this.writeToLog(`Trying to reconnect (attempt ${i})`, 'connection');
+      try {
+        await wait(500);
+        await this.connect();
+        break;
+      } catch (e) {
+        this.writeToLog(`Reconnection attempt ${i} failed: ${e}`, 'connection');
+      }
+    }
+    if (this.state !== RecordingState.RECORDING) {
+      this.pushToActivity('Failed to reconnect after 3 tries.', false);
+      this.sendWarning(
+        'I could not reconnect properly to the voice channel after 3 tries. Please restart the recording, and if this problem persists, please join the support server.',
+        false
+      );
+      this.recorder.logger.warn(`Recording ${this.id} could not properly reconnect`);
+      try {
+        await this.stop();
+      } catch (e) {
+        this.recorder.logger.debug(`Recording ${this.id} failed to stop after failed reconnect`, e);
+      }
+    }
   }
 
   async playNowRecording() {
@@ -548,7 +571,7 @@ export default class Recording {
     if (!this.active) return;
     this.writeToLog(`Voice connection ready (state=${this.connection?.ws?.readyState})`, 'connection');
     this.recorder.logger.debug(`Recording ${this.id} ready`);
-    this.pushToActivity('Reconnected.');
+    this.pushToActivity('Automatically reconnected.');
   }
 
   async onConnectionDisconnect(err?: Error) {
@@ -560,13 +583,13 @@ export default class Recording {
       if (err.message.startsWith('4006')) this.pushToActivity('Discord requested us to reconnect, reconnecting...');
       else this.pushToActivity('An error has disconnected me, reconnecting...');
       this.channel.leave();
-      await this.connect();
+      await this.retryConnect();
     } else if (this.state !== RecordingState.RECONNECTING) {
       this.pushToActivity(`The voice connection was closed, disconnecting... ([why?](https://link.snaz.in/craigstopped))`, false);
       try {
         await this.stop();
       } catch (e) {
-        console.log(e);
+        this.recorder.logger.debug(`Recording ${this.id} failed to stop after disconnect`, e);
       }
     }
   }
@@ -656,6 +679,7 @@ export default class Recording {
         id: userID,
         username: user?.username ?? 'Unknown',
         discriminator: user?.discriminator ?? '0000',
+        globalName: user?.globalName,
         unknown: !user,
         track: this.trackNo++,
         packet: 2
@@ -679,6 +703,7 @@ export default class Recording {
         const member = (await this.channel.guild.fetchMembers({ userIDs: [userID] }))?.[0];
         recordingUser.username = member?.username ?? 'Unknown';
         recordingUser.discriminator = member?.discriminator ?? '0000';
+        recordingUser.globalName = member?.user?.globalName;
         recordingUser.unknown = !member;
         if (member) user = member.user;
       }
@@ -798,7 +823,7 @@ export default class Recording {
       embeds: [
         {
           author: {
-            name: `${this.user.username}#${this.user.discriminator}`,
+            name: this.user.discriminator === '0' ? this.user.username : `${this.user.username}#${this.user.discriminator}`,
             icon_url: this.user.dynamicAvatarURL()
           },
           color,
@@ -851,7 +876,7 @@ export default class Recording {
           ]
         }
       ]
-    } as Eris.AdvancedMessageContent<'isMessageEdit'>;
+    } as Eris.AdvancedMessageContent;
   }
 
   async updateMessage() {

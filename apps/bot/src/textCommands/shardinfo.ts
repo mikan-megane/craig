@@ -61,9 +61,18 @@ export default class ShardInfoCommand extends TextCommand {
         )
         .join('\n');
 
-    await replyOrSend(ctx, '', {
-      name: 'shards.txt',
-      file: Buffer.from(message)
+    await replyOrSend(ctx, {
+      attachments: [
+        {
+          filename: 'shards.txt',
+          file: Buffer.from(message)
+        }
+      ]
     });
+  }
+
+  onError(err: Error, ctx: CommandContext) {
+    console.log(err);
+    return ctx.reply(`An error occurred while running the \`${this.name}\` command.`);
   }
 }
