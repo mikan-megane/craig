@@ -52,6 +52,7 @@ export async function onRecordingEnd(
   webapp = false,
   errored = false
 ) {
+  if (!influxOpts || !influxOpts.url) return;
   if (!activeUsers.includes(userID)) activeUsers.push(userID);
   if (!activeGuilds.includes(guildID)) activeGuilds.push(guildID);
 

@@ -172,12 +172,12 @@ export default class AutorecordModule extends DexareModule<DexareClient<CraigBot
       // Nickname the bot
       const selfUser = await getSelfMember(guild, this.client.bot);
       const recNick = cutoffText(`![RECORDING] ${selfUser ? selfUser.nick ?? selfUser.username : this.client.bot.user.username}`, 32);
-      if (selfUser && (!selfUser.nick || !selfUser.nick.includes('[RECORDING]')))
-        try {
-          await this.client.bot.editGuildMember(guildId, '@me', { nick: recNick }, 'Setting recording status');
-        } catch (e) {
-          return void this.logger.warn(`Could not connect to ${channelId} while autorecording: An error occurred while changing my nickname`, e);
-        }
+      // if (selfUser && (!selfUser.nick || !selfUser.nick.includes('[RECORDING]')))
+      //   try {
+      //     await this.client.bot.editGuildMember(guildId, '@me', { nick: recNick }, 'Setting recording status');
+      //   } catch (e) {
+      //     return void this.logger.warn(`Could not connect to ${channelId} while autorecording: An error occurred while changing my nickname`, e);
+      //   }
 
       // Start recording
       const recording = new Recording(this.recorder, channel as any, member.user, true);

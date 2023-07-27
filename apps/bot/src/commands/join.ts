@@ -272,26 +272,27 @@ export default class Join extends GeneralCommand {
     const recNick = cutoffText(`![RECORDING] ${selfUser ? selfUser.nick ?? selfUser.username : this.client.bot.user.username}`, 32);
     await ctx.defer();
     let nickChanged = false;
-    if (selfUser && (!selfUser.nick || !selfUser.nick.includes('[RECORDING]')))
-      try {
-        const nickWarnTimeout = setTimeout(() => {
-          if (!nickChanged)
-            ctx.editOriginal(oneLine`
-              It's taking a while for me to change my nickname to indicate that I'm recording.
-              I cannot start recording until I've changed my nickname. Please be patient.
-            `);
-        }, 3000) as unknown as number;
-        await this.client.bot.editGuildMember(ctx.guildID, '@me', { nick: recNick }, 'Setting recording status');
-        nickChanged = true;
-        clearTimeout(nickWarnTimeout);
-      } catch (e) {
-        nickChanged = true;
-        this.client.commands.logger.warn(
-          `Failed to change nickname for ${ctx.user.username}#${ctx.user.discriminator} (${ctx.user.id}) to record`,
-          e
-        );
-        return `An error occurred while changing my nickname: ${e}`;
-      }
+    nickChanged = true;
+    // if (selfUser && (!selfUser.nick || !selfUser.nick.includes('[RECORDING]')))
+    //   try {
+    //     const nickWarnTimeout = setTimeout(() => {
+    //       if (!nickChanged)
+    //         ctx.editOriginal(oneLine`
+    //           It's taking a while for me to change my nickname to indicate that I'm recording.
+    //           I cannot start recording until I've changed my nickname. Please be patient.
+    //         `);
+    //     }, 3000) as unknown as number;
+    //     await this.client.bot.editGuildMember(ctx.guildID, '@me', { nick: recNick }, 'Setting recording status');
+    //     nickChanged = true;
+    //     clearTimeout(nickWarnTimeout);
+    //   } catch (e) {
+    //     nickChanged = true;
+    //     this.client.commands.logger.warn(
+    //       `Failed to change nickname for ${ctx.user.username}#${ctx.user.discriminator} (${ctx.user.id}) to record`,
+    //       e
+    //     );
+    //     return `An error occurred while changing my nickname: ${e}`;
+    //   }
 
     // Start recording
     const recording = new Recording(this.recorder, channel as any, member.user);
